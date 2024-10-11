@@ -1,0 +1,13 @@
+train: ../../../datasets/huevos_ss/train/images
+val: ../../../datasets/huevos_ss/valid/images
+test: ../../../datasets/huevos_ss/test/images
+
+nc: 1
+names: ['Egg']
+
+roboflow:
+  workspace: tfg-p0civ
+  project: huevos-fqsgw
+  version: 1
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/tfg-p0civ/huevos-fqsgw/dataset/1
