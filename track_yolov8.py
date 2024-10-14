@@ -8,16 +8,19 @@ import numpy as np
 import torch
 import logging
 import threading
+import keyboard 
 
 torch.cuda.set_device(0)
 trt_on=False #Use TensorRT Engine
 #video_path = int(3)		#Para la camara sj en usb up-left, el 0
 				#Para la camara sports en usb up-right, el 3
 logging.basicConfig(level=logging.INFO)
-SOURCES = [int(0), int(3)]
+SOURCES = [int(0), int(4)]
 MODEL_NAMES= ["./N_500ep_v8.pt","./N_500ep_v8.pt"]
 SHOW_VID = [False, True]
 #show_vid=True
+
+COUNTS={}
 
 def run_counter_in_thread(model, source, trt, show, num):
 	# Load the model.
@@ -97,6 +100,7 @@ def run_counter_in_thread(model, source, trt, show, num):
 
 				if crossed != len(crossed_objects):
 					crossed=len(crossed_objects)
+					COUNTS[num]=crossed
 					logging.info(f"Cam-{num}: Crossed Eggs: {crossed}")
 					#print('Cam- '+str(num)+': Crossed Eggs: '+str(len(crossed_objects)))
 				#print('FPS Rate: ',str(int(fps)))
@@ -112,13 +116,25 @@ def run_counter_in_thread(model, source, trt, show, num):
 
 	cap.release()
 	
+def show_counts():
+	while True:
+		print(COUNTS)
+		time.sleep(3)
+		
+		if keyboard.is_pressed('q'):
+			break
 
 tracker_threads=[]
 for video_file, model_name, show in zip(SOURCES, MODEL_NAMES, SHOW_VID):
-	thread = threading.Thread(target=run_counter_in_thread, args=(model_name, video_file, trt_on, show, int(1+len(tracker_threads))))
+	thread = threading.Thread(target=run_counter_in_thread, args=(model_name, video_file, trt_on, show, int(len(tracker_threads))))
+	COUNTS[int(len(tracker_threads))]=0
 	tracker_threads.append(thread)
 	thread.start()
-	
+
+#Hilo para ir mostrando el conteo	
+t_show=threading.Thread(target=show_counts)
+t_show.start()
+
 for thread in tracker_threads:
 	thread.join()
 
