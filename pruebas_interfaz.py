@@ -13,8 +13,8 @@ import logging
 import threading
 from datetime import datetime
 
-SOURCES = [int(1),int(2)] 
-MODELS=['N_500ep_v8.pt','recortado.mp4']
+SOURCES = [int(0),int(2)] 
+MODELS=['N_500ep_v8.pt','N_500ep_v8.pt']
 SHOW_VID=[False,True]
 EXPORTED_MODELS=[] 
 trt_on=False
@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO)
 
 SCHEDULE = {
     0: ('08:00', '18:00'),   # Worker 0 trabaja entre las 8:00 y 21:00
-    1: ('14:00', '21:00'),   # Worker 1 trabaja entre las 14:00 y 18:00
+    1: ('12:00', '21:00'),   # Worker 1 trabaja entre las 14:00 y 18:00
 }
 
 class Worker(QThread):
@@ -43,14 +43,21 @@ class Worker(QThread):
         START = sv.Point(10, 300)
         END = sv.Point(1500, 300)
 
-        while self.running and cap.isOpened():
-            now = datetime.now().strftime('%H:%M')
-            start_time, end_time = SCHEDULE.get(self.thread_num, (None, None))
+        #while self.running and cap.isOpened():
+        while cap.isOpened():
+            #cap=self.initialize_capture()
+            logging.info("running")
+			now = datetime.now().strftime('%H:%M')
+			start_time, end_time = SCHEDULE.get(self.thread_num, (None, None))
 
-            if start_time and end_time and start_time <= now <= end_time:
+			if start_time and end_time and start_time <= now <= end_time:
                 success, frame = cap.read()
                 if success:
-                    self.process_frame(frame, START, END)
+                    logging.info(now)
+                    logging.info(f"Sucess Cam-{self.thread_num}")
+                    cv2.imshow(f"hola-{self.thread_num}",frame)
+                    cv2.waitKey(1)
+                    #self.process_frame(frame, START, END)
                 else:
                     break
                 # time.sleep(1)  # Tiempo de espera simulado para el procesamiento
@@ -66,8 +73,8 @@ class Worker(QThread):
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         return cap
 
-    def process_fame(self,frame, start, end):
-        results = model.track(frame, persist=True,conf=0.3, iou=0.5, verbose=False, save=False, tracker="bytetrack.yaml", imgsz=640)
+    def process_frame(self,frame, start, end):
+        results = self.model.track(frame, persist=True,conf=0.3, iou=0.5, verbose=False, save=False, tracker="bytetrack.yaml", imgsz=640)
         
         if results[0].boxes.id is None:
             return
@@ -98,14 +105,14 @@ class Worker(QThread):
                 if track_id not in crossed_objects:
                     crossed_objects[track_id] = True  # Marcar el objeto como cruzado
         # Contar el número de objetos cruzados
-        if len(crossed_objects) != self.crossed:
-            self.crossed = len(crossed_objects)  # Actualizar conteo de cruzados
-            self.update_signal.emit(self.thread_num, self.crossed)  # Emitir actualización
+        if len(crossed_objects) != self.count:
+            self.count = len(crossed_objects)  # Actualizar conteo de cruzados
+            self.update_signal.emit(self.thread_num, self.count)  # Emitir actualización
             logging.info(f"Cam-{self.thread_num}: Crossed Objects: {self.crossed}")
             
         cv2.line(annotated_frame, (start.x, start.y), (end.x, end.y), (0, 255, 0), 2)
         # Mostrar la cuenta de objetos en cada fotograma
-        count_text = f"Objects crossed: {self.crossed}"
+        count_text = f"Objects crossed: {self.count}"
         cv2.putText(annotated_frame, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)   
 
 
