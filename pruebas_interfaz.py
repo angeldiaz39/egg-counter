@@ -84,29 +84,29 @@ class Worker(QThread):
             self.running = False 
 
     def update_detection(self, boxes, track_ids, annotated_frame, start, end):
-    crossed_objects = {}
-    for box, track_id in zip(boxes, track_ids):
-        x, y, w, h = box
-        # Guardar la trayectoria del objeto
-        self.track_history[track_id].append((float(x), float(y)))  # x, y como punto center
-        
-        # Limitar la altura de seguimiento
-        if len(self.track_history[track_id]) > 30:  # Retener 30 seguimientos para 30 fotogramas
-            self.track_history[track_id].pop(0)
-        # Verificar si el objeto cruza la línea
-        if start.x < x < end.x and abs(y - start.y) < 5:  # Supone que los objetos cruzan horizontalmente
-            if track_id not in crossed_objects:
-                crossed_objects[track_id] = True  # Marcar el objeto como cruzado
-    # Contar el número de objetos cruzados
-    if len(crossed_objects) != self.crossed:
-        self.crossed = len(crossed_objects)  # Actualizar conteo de cruzados
-        self.update_signal.emit(self.thread_num, self.crossed)  # Emitir actualización
-        logging.info(f"Cam-{self.thread_num}: Crossed Objects: {self.crossed}")
-        
-    cv2.line(annotated_frame, (start.x, start.y), (end.x, end.y), (0, 255, 0), 2)
-    # Mostrar la cuenta de objetos en cada fotograma
-    count_text = f"Objects crossed: {self.crossed}"
-    cv2.putText(annotated_frame, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)   
+        crossed_objects = {}
+        for box, track_id in zip(boxes, track_ids):
+            x, y, w, h = box
+            # Guardar la trayectoria del objeto
+            self.track_history[track_id].append((float(x), float(y)))  # x, y como punto center
+            
+            # Limitar la altura de seguimiento
+            if len(self.track_history[track_id]) > 30:  # Retener 30 seguimientos para 30 fotogramas
+                self.track_history[track_id].pop(0)
+            # Verificar si el objeto cruza la línea
+            if start.x < x < end.x and abs(y - start.y) < 5:  # Supone que los objetos cruzan horizontalmente
+                if track_id not in crossed_objects:
+                    crossed_objects[track_id] = True  # Marcar el objeto como cruzado
+        # Contar el número de objetos cruzados
+        if len(crossed_objects) != self.crossed:
+            self.crossed = len(crossed_objects)  # Actualizar conteo de cruzados
+            self.update_signal.emit(self.thread_num, self.crossed)  # Emitir actualización
+            logging.info(f"Cam-{self.thread_num}: Crossed Objects: {self.crossed}")
+            
+        cv2.line(annotated_frame, (start.x, start.y), (end.x, end.y), (0, 255, 0), 2)
+        # Mostrar la cuenta de objetos en cada fotograma
+        count_text = f"Objects crossed: {self.crossed}"
+        cv2.putText(annotated_frame, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)   
 
 
 
