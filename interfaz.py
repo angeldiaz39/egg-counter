@@ -42,6 +42,10 @@ class MainWindow(QWidget):
 		self.reset_button.clicked.connect(self.reset_counts)
 		self.layout.addWidget(self.reset_button)
 		
+		self.off_button = QPushButton("Apagar Sistema")
+		self.off_button.clicked.connect(self.apagar_sistema)
+		self.layout.addWidget(self.off_button)
+		
 		self.socket_thread =SocketThread()
 		self.socket_thread.data_received.connect(self.update_labels)
 		self.socket_thread.start()
@@ -51,6 +55,8 @@ class MainWindow(QWidget):
 		
 	def reset_counts(self):
 		self.reset_socket.send("RESET".encode())
+	def apagar_sistema(self):
+		self.reset_socket.send("OFF".encode())
 		
 	def update_labels(self,data):
 		for key,value in  data.items():
