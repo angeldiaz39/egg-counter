@@ -6,6 +6,7 @@ from PyQt5.QtCore import QThread, pyqtSignal
 
 class SocketThread(QThread):
 	data_received=pyqtSignal(dict)
+	#reset_counts = pyqtSignal()
 	def __init__(self):
 		super().__init__()
 		self.host=socket.gethostname()
@@ -36,9 +37,20 @@ class MainWindow(QWidget):
 		self.labels = {}
 		self.setLayout(self.layout)
 		self.setWindowTitle("Interfaz para conteo de huevos")
+		
+		self.reset_button = QPushButton("Resetar Contador")
+		self.reset_button.clicked.connect(self.reset_counts)
+		self.layout.addWidget(self.reset_button)
+		
 		self.socket_thread =SocketThread()
 		self.socket_thread.data_received.connect(self.update_labels)
 		self.socket_thread.start()
+		
+		self.reset_socket = socket.socket()
+		self.reset_socket.connect((socket.gethostname(),6000))
+		
+	def reset_counts(self):
+		self.reset_socket.send("RESET".encode())
 		
 	def update_labels(self,data):
 		for key,value in  data.items():

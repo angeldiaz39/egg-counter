@@ -33,6 +33,7 @@ SCHEDULE = {
     3: ('08:00', '18:00'), 
     4: ('08:00', '18:00'),    
 }
+RSTs=[False,False,False]
 
 def run_counter_in_thread(model, source, trt, show, num):
 
@@ -55,6 +56,11 @@ def run_counter_in_thread(model, source, trt, show, num):
 	new_frame_time=0
 
 	while cap.isOpened():
+		if RSTs[num]:
+			crossed_objects={}
+			crossed = 0
+			RSTs[num]=False
+			
 		now = datetime.now().strftime('%H:%M')
 		start_time, end_time = SCHEDULE.get(num, (None, None))
 		if start_time <= now <= end_time:
@@ -74,7 +80,7 @@ def run_counter_in_thread(model, source, trt, show, num):
 
 					# Visualize the results on the frame
 					annotated_frame = results[0].plot()
-					detections = sv.Detections.from_yolov8(results[0])
+					#detections = sv.Detections.from_yolov8(results[0])
 
 					 # Plot the tracks and count objects crossing the line
 					for box, track_id in zip(boxes, track_ids):
@@ -141,6 +147,30 @@ def send_counts():
 		cliente.send(msg.encode())
 		#logging.info("ENVIADO")
 		time.sleep(3)
+def reset_counts():
+	global COUNTS
+	COUNTS = {key: 0 for key in COUNTS.keys()}
+	logging.info("Contadores reiniciados a cero")
+	
+def listen_for_resets():
+	host=socket.gethostname()
+	port=6000
+	server=socket.socket()
+	server.bind((host,port))
+	server.listen(5)
+	
+	client,addr = server.accept()
+	while True:
+		try:
+			data=client.recv(1024).decode()
+			if data == "RESET":
+				reset_counts()
+				RSTs[0]=True
+				RSTs[1]=True
+				RSTs[2]=True
+					
+		except Exception as e:
+			logging.info(f"Error recibiendo orden de reset: {e}")
 		
 		
 	
@@ -167,6 +197,8 @@ for video_file, model_name, show in zip(SOURCES, EXPORTED_MODELS, SHOW_VID):
 #Hilo para ir mostrando el conteo	
 t_show=threading.Thread(target=send_counts)
 t_show.start()
+t_reset=threading.Thread(target=listen_for_resets)
+t_reset.start()
 
 for thread in tracker_threads:
 	thread.join()
