@@ -23,29 +23,30 @@ logging.basicConfig(level=logging.INFO)
 model_name="./N_500ep_v8.pt"
 EXPORTED_MODELS=[]
 #SHOW_VID = [False,True,True]
+prev_frame_time=0
 
 COUNTS={}
 SCHEDULE = {
-    0: ('08:00', '19:58'), 
-    1: ('15:58', '19:00'), 
-    2: ('08:00', '19:39'), 
-    3: ('08:00', '18:00'), 
+    0: ('08:00', '23:58'), 
+    1: ('15:58', '23:00'), 
+    2: ('08:00', '23:39'), 
+    3: ('08:00', '23:00'), 
     4: ('08:00', '18:00'),    
 }
 RSTs=[False,False,False,False, False, False]
 APAGAR=False
 
-def run_counter_in_thread(model, source, trt, show, num):
+def run_counter_in_thread(model, source, trt, num):
 	cap=initializeCapture(source)
-	START = sv.Point(1, 300)
-	END = sv.Point(1500, 300)
+	START = sv.Point(1, 500)
+	END = sv.Point(1500, 500)
 
 	crossed_objects = {}
 	crossed=0
 	track_history = defaultdict(lambda: [])
 
 	# Variables for FPS calculation
-	prev_frame_time=0
+	#prev_frame_time=0
 	new_frame_time=0
 
 	while cap.isOpened():
@@ -62,12 +63,10 @@ def run_counter_in_thread(model, source, trt, show, num):
 		start_time, end_time = SCHEDULE.get(num, (None, None))
 		if start_time <= now <= end_time:
 			success, frame = cap.read()
-
 			if success:
-				process_frame(frame, START, END,crossed_objects,crossed,track_history,prev_frame_time,num)
+				process_frame(frame, START, END,crossed_objects,crossed,track_history,num)
 				if cv2.waitKey(1) & 0xFF == ord("q"):
-					break
-			
+					break			
 			else:		
 				break# Break the loop if the end of the video is reached
 		else:
@@ -76,22 +75,26 @@ def run_counter_in_thread(model, source, trt, show, num):
 
 	cap.release()
 	
-def process_frame(frame, start,end,crossed_objects,crossed,track_history,prev_frame_time,num):
+def process_frame(frame, start,end,crossed_objects,crossed,track_history,num):
 	results = model.track(frame, persist=True,conf=0.3, iou=0.5, verbose=False, save=False, tracker="bytetrack.yaml", imgsz=640)
 	if results[0].boxes.id is None:
 		return
 	boxes = results[0].boxes.xywh.cpu()
 	track_ids = results[0].boxes.id.int().cpu().tolist()
 	# SH Visualize the results on the frame
-	annotated_frame = results[0].plot()
+	if SHOW_VID:
+		annotated_frame = results[0].plot()
+		update_detection(boxes, track_ids, annotated_frame, start, end,crossed_objects,crossed,track_history,num)
+	else:
+		update_detection(boxes, track_ids, None , start, end,crossed_objects,crossed,track_history,num)
+
+	if SHOW_VID:
+		cv2.imshow(f"Contador-{num}", annotated_frame)
 	
-	update_detection(boxes, track_ids, annotated_frame, start, end,crossed_objects,crossed,track_history,prev_frame_time,num)
-	cv2.imshow(f"Contador-{num}", annotated_frame)
 
-		
-		
 
-def update_detection(boxes, track_ids, annotated_frame, start, end,crossed_objects,crossed,track_history,prev_frame_time,num):
+def update_detection(boxes, track_ids, annotated_frame, start, end,crossed_objects,crossed,track_history,num):
+	global prev_frame_time
 	for box, track_id in zip(boxes, track_ids):
 		x, y, w, h = box
 		track = track_history[track_id]
@@ -152,7 +155,7 @@ def reset_counts():
 	logging.info("Contadores reiniciados a cero")
 	
 def listen_for_resets():
-	global APAGAR
+	global APAGAR, SHOW_VID
 	host=socket.gethostname()
 	port=6000
 	server=socket.socket()
@@ -160,6 +163,7 @@ def listen_for_resets():
 	server.listen(5)
 	
 	client,addr = server.accept()
+	logging.info(f"Conectado a {addr}")
 	while True:
 		try:
 			data=client.recv(1024).decode()
@@ -172,7 +176,14 @@ def listen_for_resets():
 				APAGAR=True
 				time.sleep(2)
 				break
-					
+			if data == "SHOW_VID":
+				logging.info("Recibida señal de SHOW_VID")
+				if SHOW_VID:
+					SHOW_VID=False
+					cv2.destroyAllWindows()
+				else:
+					SHOW_VID=True
+						
 		except Exception as e:
 			logging.info(f"Error recibiendo orden de reset: {e}")
 		
@@ -207,7 +218,7 @@ def create_model(model_name):
 
 model=create_model(model_name)    
 for video_file in SOURCES:
-	thread = threading.Thread(target=run_counter_in_thread, args=(model, video_file, trt_on, SHOW_VID , int(len(tracker_threads))))
+	thread = threading.Thread(target=run_counter_in_thread, args=(model, video_file, trt_on, int(len(tracker_threads))))
 	COUNTS[int(len(tracker_threads))]=0
 	tracker_threads.append(thread)
 	thread.start()
@@ -219,7 +230,7 @@ t_reset=threading.Thread(target=listen_for_resets)
 t_reset.start()
 
 #Ejecutar la interfaz
-time.sleep(5)
+time.sleep(8)
 logging.info("Abriendo interfaz...")
 subprocess.run(['python','./interfaz.py'])
 
