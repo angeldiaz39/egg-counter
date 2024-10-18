@@ -15,12 +15,12 @@ import subprocess
 
 SOURCES = [0,2]
 SHOW_VID=True
+model_name="./N_500ep_v8.pt"
 
 torch.cuda.set_device(0)
 trt_on=True #Use TensorRT Engine
 logging.basicConfig(level=logging.INFO)
 #MODEL_NAMES= ["./N_500ep_v8.pt","./N_500ep_v8.pt"]
-model_name="./N_500ep_v8.pt"
 EXPORTED_MODELS=[]
 #SHOW_VID = [False,True,True]
 prev_frame_time=0
@@ -194,7 +194,7 @@ tracker_threads=[]
 
 def create_model(model_name):
 	#global EXPORTED_MODELS
-	model=YOLO(model_name)
+	#model=YOLO(model_name)
 	#Para un solo modelo
 	if trt_on:
 		#model.export(format="engine")
